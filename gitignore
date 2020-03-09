@@ -1,0 +1,5 @@
+az-auto-tag
+__debug_bin
+.env
+debug.test
+azure.auth
