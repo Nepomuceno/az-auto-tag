@@ -29,28 +29,6 @@ type AzureResource struct {
 	SubName       string
 }
 
-type single struct {
-	mu     sync.Mutex
-	values map[string]int64
-}
-
-var counters = single{
-	values: make(map[string]int64),
-}
-
-func (s *single) get(key string) int64 {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	return s.values[key]
-}
-
-func (s *single) incr(key string) int64 {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.values[key]++
-	return s.values[key]
-}
-
 var (
 	providers = map[string]string{}
 	tenant    = ""
@@ -118,11 +96,6 @@ func main() {
 				}
 				wg.Wait()
 				fmt.Println("Tick at", t)
-				counters.mu.Lock()
-				for key, value := range counters.values {
-					fmt.Println(key, ",", value)
-				}
-				counters.mu.Unlock()
 			}
 		}
 	}()
@@ -145,17 +118,20 @@ func getSubscriptions(auth autorest.Authorizer) ([]string, error) {
 	return subs, nil
 }
 
-func evaluateStatus(auth autorest.Authorizer, authGraph autorest.Authorizer, subscription string, wg *sync.WaitGroup) {
+func evaluateStatus(
+	auth autorest.Authorizer, authGraph autorest.Authorizer,
+	subscription string, wg *sync.WaitGroup,
+	fromTime time.Time, toTime time.Time) {
 	defer wg.Done()
 	log.Printf("Evaluating status for: %s", subscription)
+
 	resourceClient := resources.NewClient(subscription)
 	activityClient := insights.NewActivityLogsClient(subscription)
 	activityClient.Authorizer = auth
 	resourceClient.Authorizer = auth
-	t := time.Now()
-	tstart := t.AddDate(0, 0, -89)
-	tstarts := tstart.Format("2006-01-02T15:04:05")
-	ts := t.Format("2006-01-02T15:04:05")
+
+	tstarts := fromTime.Format("2006-01-02T15:04:05")
+	ts := toTime.Format("2006-01-02T15:04:05")
 	filterString := fmt.Sprintf("eventTimestamp ge '%s' and eventTimestamp le '%s'", tstarts, ts)
 	listResources, err := activityClient.ListComplete(context.Background(), filterString, "")
 	if err != nil {
@@ -164,17 +140,13 @@ func evaluateStatus(auth autorest.Authorizer, authGraph autorest.Authorizer, sub
 	for listResources.NotDone() {
 		logActivity := listResources.Value()
 		listResources.Next()
-		if logActivity.Caller == nil ||
-			logActivity.ResourceType == nil ||
-			logActivity.ResourceType.Value == nil ||
-			*logActivity.ResourceType.Value == "Microsoft.Resources/deployments" ||
+		if logActivity.Caller == nil || logActivity.ResourceType == nil ||
+			logActivity.ResourceType.Value == nil || *logActivity.ResourceType.Value == "Microsoft.Resources/deployments" ||
 			unsuportedProviders[strings.ToLower(*logActivity.ResourceType.Value)] ||
-			logActivity.SubStatus == nil ||
-			logActivity.SubStatus.Value == nil ||
+			logActivity.SubStatus == nil || logActivity.SubStatus.Value == nil ||
 			(*logActivity.SubStatus.Value != "Created" && !writeOperation.MatchString(*logActivity.OperationName.Value)) {
 			continue
 		}
-		counters.incr(*logActivity.Caller)
 		resourceID := *logActivity.ResourceID
 		apiVersion := providers[strings.ToLower(*logActivity.ResourceType.Value)]
 		if apiVersion == "" {
