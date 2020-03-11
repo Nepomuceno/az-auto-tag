@@ -34,6 +34,6 @@ tolerations: []
 affinity: {}
 
 config:
-  clientid: "client"
-  tenantid: "tenant"
-  secret: "secret"
+  clientid: ""
+  tenantid: ""
+  secret: ""
