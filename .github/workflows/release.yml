@@ -1,0 +1,33 @@
+name: release
+
+on:
+  create:
+    tags:
+     '*'
+    
+jobs:
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+
+    - name: Check out code into the Go module directory
+      uses: actions/checkout@v2
+    
+    - name: Set env
+      run: echo ::set-env name=RELEASE_VERSION::${GITHUB_REF:10}    
+    
+    - name: Compress Helm Chart
+      run: tar -czvf helm-chart-$RELEASE_VERSION.tar.gz ./az-auto-tag-deployment
+   
+    - name: GH Release
+      uses: softprops/action-gh-release@v0.1.5
+      with:
+        # Note-worthy description of changes in release
+        body: "New relaease"
+        # Newline-delimited list of path globs for asset files to upload
+        files: 
+          helm-chart-$RELEASE_VERSION.tar.gz
+          
+    
