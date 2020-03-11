@@ -1,0 +1,40 @@
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: az-auto-tag
+  labels:
+    name: az-auto-tag
+spec:
+  containers:
+    - name: az-auto-tag
+      image: gabrielbico/az-auto-tag
+      resources:
+        limits:
+          memory: "256Mi"
+          cpu: "500m"
+      env:
+        - name: AZURE_TENANT_ID
+          valueFrom:
+            secretKeyRef:
+              name: tag-azure-user
+              key: tenant-id
+        - name: AZURE_CLIENT_ID
+          valueFrom:
+            secretKeyRef:
+              name: tag-azure-user
+              key: client-id
+        - name: AZURE_CLIENT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: tag-azure-user
+              key: secret
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: tag-azure-user
+data:
+  client-id: AAAAA
+  secret: AAAAA
+  tenant-id: AAAAA
