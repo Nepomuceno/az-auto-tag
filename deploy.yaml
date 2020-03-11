@@ -35,6 +35,6 @@ kind: Secret
 metadata:
   name: tag-azure-user
 data:
-  client-id: AAAAA
-  secret: AAAAA
-  tenant-id: AAAAA
+  client-id: cGFzc3dvcmQ=
+  secret: cGFzc3dvcmQ=
+  tenant-id: cGFzc3dvcmQ=
