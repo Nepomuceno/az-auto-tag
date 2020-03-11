@@ -32,6 +32,7 @@ type AzureResource struct {
 var (
 	providers = map[string]string{}
 	tenant    = ""
+	start     = time.Now().AddDate(0, 0, -89)
 )
 
 func main() {
@@ -65,7 +66,6 @@ func main() {
 		tenant = *value.TenantID
 		tenants.Next()
 	}
-
 	subs, err := getSubscriptions(*authorizer)
 	providersClient := resources.NewProvidersClient(subs[0])
 	providersClient.Authorizer = *authorizer
@@ -85,6 +85,7 @@ func main() {
 			case <-done:
 				return
 			case t := <-ticker.C:
+				now := time.Now()
 				subs, err := getSubscriptions(*authorizer)
 				if err != nil {
 					log.Panic(err)
@@ -92,9 +93,11 @@ func main() {
 				var wg sync.WaitGroup
 				wg.Add(len(subs))
 				for _, sub := range subs {
-					go evaluateStatus(*authorizer, *graphAuthorizer, sub, &wg)
+					go evaluateStatus(*authorizer, *graphAuthorizer, sub, &wg, start, now)
 				}
 				wg.Wait()
+				back, _ := time.ParseDuration(fmt.Sprintf("-%ds", interval*5))
+				start = now.Add(back)
 				fmt.Println("Tick at", t)
 			}
 		}
